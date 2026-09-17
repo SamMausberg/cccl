@@ -282,7 +282,8 @@ __dtor<__traits<_Types...>, _Trait::_Unavailable> : public __base<_Trait::_Unava
   _CCCL_API ~__dtor() = delete;
 
 protected:
-  _CCCL_API void __destroy() noexcept = delete;
+  // clang-tidy requests public access, but that would make this function part of the API.
+  _CCCL_API void __destroy() noexcept = delete; // NOLINT(modernize-use-equals-delete)
 };
 
 #undef _LIBCUDACXX_VARIANT_DESTRUCTOR_BODY

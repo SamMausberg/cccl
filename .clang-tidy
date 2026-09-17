@@ -58,6 +58,17 @@ Checks:
   # readability-* as a whole is not enabled yet; only turn on the specific sub-checks we have
   # vetted so far.
   - 'readability-identifier-naming'
+  - 'cppcoreguidelines-*'
+  - '-cppcoreguidelines-pro-bounds-pointer-arithmetic'
+  - '-cppcoreguidelines-pro-bounds-constant-array-index'
+  - '-cppcoreguidelines-avoid-do-while'
+  - '-cppcoreguidelines-pro-bounds-array-to-pointer-decay'
+  - '-cppcoreguidelines-special-member-functions'
+  # Better caught by -Wmaybe-uninitialized
+  - '-cppcoreguidelines-init-variables'
+  # Many false positives
+  - '-cppcoreguidelines-avoid-non-const-global-variables'
+  - '-cppcoreguidelines-avoid-const-or-ref-data-members'
   # END REMOVE ME
   # TODO(jfaibussowit):
   #
@@ -366,4 +377,6 @@ CheckOptions:
   performance-enum-size.EnumIgnoreList: '::cuda::std::.*'
   performance-unnecessary-value-param.AllowedTypes: '.*(_ref(erence)?|_ptr|pointer|(_)?[Ii]t(erator)?|IteratorT|__half(2)?|(__nv_bfloat.*)|_view)$'
   bugprone-exception-escape.CheckMain: false
+  cppcoreguidelines-missing-std-forward.ForwardFunction: '::cuda::std::forward'
+  cppcoreguidelines-rvalue-reference-param-not-moved.MoveFunction: '::cuda::std::move'
 ...
