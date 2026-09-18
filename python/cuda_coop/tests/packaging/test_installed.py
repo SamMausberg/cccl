@@ -139,6 +139,8 @@ def test_isolated_python_uses_only_the_installed_wheel(tmp_path: Path) -> None:
                 "cub/warp/warp_scan.cuh",
                 "cub/warp/warp_store.cuh",
                 "cuda/experimental/coop.cuh",
+                "cuda/experimental/group.cuh",
+                "cuda/functional",
                 "thrust/detail/raw_pointer_cast.h",
                 "cuda/std/cstdint",
             ),
@@ -174,6 +176,7 @@ def test_isolated_cutlass_backend_uses_installed_modules(tmp_path: Path) -> None
     probe = textwrap.dedent(
         """
         import importlib.metadata
+        import inspect
         import sys
         from pathlib import Path
 
@@ -199,6 +202,17 @@ def test_isolated_cutlass_backend_uses_installed_modules(tmp_path: Path) -> None
         logical = cutlass_coop.this_warp().group_by(8)
         assert isinstance(logical, cutlass_coop.ThreadGroup)
         assert logical.kind == "threads_within_warp"
+        assert {"this_thread", "this_cluster", "this_grid", "reduce", "sum"} <= set(
+            cutlass_coop.__all__
+        )
+        for kind in ("thread", "cluster", "grid"):
+            assert getattr(cutlass_coop, "this_" + kind)().kind == kind
+        assert tuple(inspect.signature(cutlass_coop.reduce).parameters) == (
+            "group", "value", "binary_op", "broadcast", "valid_items", "algorithm"
+        )
+        assert tuple(inspect.signature(cutlass_coop.sum).parameters) == (
+            "group", "value", "broadcast", "valid_items", "algorithm"
+        )
         assert "cuda.coop.cutlass" in _dispatch._COMPILER_CONTEXT_PROBES
         assert _dispatch._backend_module_name() is None
         """
