@@ -39,7 +39,8 @@ struct __atomic_locked_storage
   static constexpr __atomic_tag __tag = __atomic_tag::__atomic_locked_tag;
 
   _Tp __a_value;
-  mutable __atomic_storage<_CCCL_ATOMIC_FLAG_TYPE> __a_lock;
+  // A lock member initializer would change default-constructor triviality for cuda::atomic.
+  mutable __atomic_storage<_CCCL_ATOMIC_FLAG_TYPE> __a_lock; // NOLINT(cppcoreguidelines-pro-type-member-init)
 
   _CCCL_HIDE_FROM_ABI explicit constexpr __atomic_locked_storage() noexcept = default;
 
