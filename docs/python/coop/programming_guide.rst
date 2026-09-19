@@ -4,13 +4,13 @@
 
 .. _cuda.coop.programming_guide:
 
-``cuda.coop`` Programming Guide
-===============================
+Numba-CUDA-MLIR Programming Guide
+=================================
 
-``cuda.coop`` lets threads cooperate inside a Python GPU kernel. You can
-load a tile, compute a prefix sum across its elements, and write the result
-without leaving the kernel. You choose the participating group and the data
-each thread contributes.
+This guide shows how to use ``cuda.coop`` inside Numba-CUDA-MLIR kernels.
+You can load a tile, compute a prefix sum across its elements, and write the
+result without leaving the kernel. The :doc:`shared overview <../coop>`
+introduces groups, payloads, layouts, and participation across backends.
 
 The :doc:`visualizations <visualizations/index>` show how values move through
 these operations. Each explorer includes an example kernel and lets you
@@ -18,17 +18,20 @@ step through the algorithm. The :doc:`glossary <glossary>` defines terms and
 layouts; the :doc:`FAQs <faqs>` explain common API choices.
 
 This guide assumes you have written a CUDA kernel and know how threads,
-blocks, and device arrays work. The examples use Numba-CUDA-MLIR. The
+blocks, and device arrays work. The
 :doc:`installation instructions <../coop>` describe the matching
 ``cuda-coop`` extra; the current backend requires
 ``numba-cuda-mlir>=0.5.0,<0.6``.
 
-*This guide describes the experimental Numba-CUDA-MLIR API in the current
-PR stack. Operation support varies by group and backend. The examples below
-use block and warp operations supported by that stack.*
+For CuTe kernels, see the :doc:`CUTLASS Programming Guide <../coop_cutlass>`.
+The :doc:`Numba-CUDA-MLIR Developer Guide <developer_overview>` explains
+the compiler integration; the :doc:`CUTLASS Developer Guide
+<cutlass_developer_guide>` covers its CuTe counterpart. Operation support
+varies by group and backend, so use the guide for the compiler running your
+kernel.
 
 A first kernel: prefix sums within tiles
----------------------------------------
+----------------------------------------
 
 A prefix sum gives each element the sum of the elements before it. For an
 exclusive sum of ``[3, 1, 4, 2]``, the result is ``[0, 3, 4, 8]``.
@@ -98,9 +101,10 @@ The remaining examples reuse the imports above. Each kernel example includes
 its own input and result check.
 
 .. _coop-programming-api-choice:
+.. _choosing-the-common-or-qualified-api:
 
-Choosing the common or qualified API
------------------------------------
+Common API and Numba-CUDA-MLIR extensions
+-----------------------------------------
 
 The common API is imported with:
 
@@ -112,8 +116,9 @@ The common API is imported with:
 ``cuda.coop`` expresses operations through a common vocabulary of groups,
 numeric values, ``ThreadData``, and ``TempStorage``. The kernel
 compiler uses its registered backend to implement those calls. Start here
-when these operations cover your kernel's needs. Numba-CUDA-MLIR is the first
-backend; CUTLASS support is planned.
+when these operations cover your kernel's needs. The CUTLASS backend uses
+the same common API inside CuTe kernels, with the supported operations and
+restrictions described in its :doc:`Programming Guide <../coop_cutlass>`.
 
 The qualified import selects the Numba-CUDA-MLIR API explicitly:
 
@@ -128,7 +133,8 @@ In a program that uses only the qualified API, importing it as ``coop`` is
 also fine.
 
 The qualified API accepts Numba-specific payloads and adds controls to
-several operations:
+several operations. This table describes those extensions for
+Numba-CUDA-MLIR:
 
 .. list-table::
    :header-rows: 1
@@ -179,6 +185,16 @@ several operations:
    * - Load/Store algorithms and explicit scratch
      - String algorithm selectors and ``TempStorage`` on supported block calls
      - Same shared controls; qualifying the import is unnecessary for these
+
+.. note::
+
+   Numba local arrays, the ``local`` and ``shared`` namespaces, Python device
+   callbacks, and stateful Scan prefix callbacks belong to the
+   Numba-CUDA-MLIR integration. Some qualified controls, such as Scan
+   aggregate output and block scatter, are also available in CUTLASS.
+   Check the selected backend's guide before carrying a qualified call
+   between compilers. Merge Sort, Radix Sort/Rank, and TopK are implemented
+   in Numba-CUDA-MLIR; their CUTLASS implementations are still planned.
 
 For example, suppose you need both the exclusive sum and each tile's total.
 The qualified Scan can produce both in one call. Here it also consumes an
@@ -415,7 +431,7 @@ Constructing a group or a ``ThreadData`` object does not synchronize threads.
 .. _coop-thread-data:
 
 ``ThreadData``: the part of a tile owned by one thread
-----------------------------------------------------
+------------------------------------------------------
 
 ``coop.ThreadData(2, dtype=np.int32)`` gives each thread two integer slots.
 With 128 threads, the group owns 256 values. Each thread
@@ -526,12 +542,17 @@ to payload storage; alignment of the input and output arrays remains a
 separate property.
 
 Load, operate, store
--------------------
+--------------------
 
 Load and Store accept one-dimensional contiguous arrays. ``offset`` counts
 elements from the array's beginning. ``valid_items`` counts elements in
 the valid prefix of the selected group's tile. Both must be uniform within
 that group.
+
+Runtime ``valid_items`` and ``offset`` accept signed integers through 64 bits
+and unsigned integers through 32 bits. Boolean, floating-point, and
+``uint64`` runtime controls are rejected. Static offsets must be nonnegative;
+for runtime offsets, the caller must ensure this precondition.
 
 For a block, a tile holds ``block_threads * items_per_thread`` elements.
 For a physical or logical warp, it holds
@@ -641,6 +662,9 @@ block. For width ``G`` and ``K`` items per thread, this origin is
 after that origin. In a multi-block traversal, pass the block's global
 tile origin as ``offset``.
 
+Runtime offsets must leave enough signed 64-bit range for the last group's
+origin in the block. Static offsets are checked during planning.
+
 The valid count still belongs to each individual group. Compute it using
 both the block origin and the group's origin:
 
@@ -723,7 +747,7 @@ Reduce has its own group-dependent implementation and does not accept
 ``temp_storage`` in the public signature.
 
 Reusing scratch across operations
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This version of a tile scan shares one descriptor between the transpose
 Load, Scan, and transpose Store:
@@ -763,7 +787,7 @@ The loaded values and the returned prefixes remain in their per-thread
 payloads while scratch is reused.
 
 Capacity, alignment, and lifetime
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ``TempStorage()`` defaults to ``sharing="shared"`` with automatic reuse
 synchronization. ``size_in_bytes=None`` and ``alignment=None`` let the
@@ -857,7 +881,7 @@ for the kernels above; use an explicit capacity when you have a reason to
 reserve that amount of shared memory.
 
 Helpers and compile-time values
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Device helpers containing primitives must be inlined into the kernel so the
 planner can resolve their groups, descriptors, and launch dimensions. Default
@@ -938,7 +962,7 @@ have different valid-count contracts.
 .. _coop-scans:
 
 Scan operators and carrying a prefix
------------------------------------
+------------------------------------
 
 An inclusive scan includes the current element; an exclusive scan starts
 with an initial value and excludes the current element. For sum, the
@@ -1000,7 +1024,7 @@ remain numeric scalars even when a thread owns several items.
 .. _coop-prefix-callbacks:
 
 Several tiles in one block
-^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A Block Scan prefix callback supplies the prefix preceding a tile. A
 stateful callback can also update a running total for the next tile. The
@@ -1075,7 +1099,7 @@ device-wide scan or design the additional inter-block algorithm explicitly.
 .. _coop-merge-sort:
 
 Sorting keys and associated values
----------------------------------
+----------------------------------
 
 :func:`~cuda.coop.merge_sort_keys` orders a group's keys.
 :func:`~cuda.coop.merge_sort_pairs` moves an associated value with each key,
@@ -1120,7 +1144,7 @@ than combining it with ``descending=True``.
 .. _coop-radix:
 
 Radix sorting and digit ranks
-----------------------------
+-----------------------------
 
 :func:`~cuda.coop.radix_sort_keys` and :func:`~cuda.coop.radix_sort_pairs`
 sort a block's full tile by key bits. They accept blocked input, return
@@ -1189,7 +1213,7 @@ Radix Rank uses compiler-owned scratch.
 .. _coop-topk:
 
 Selecting the smallest or largest keys
--------------------------------------
+--------------------------------------
 
 :func:`~cuda.coop.topk_max_keys` selects a block's largest keys, and
 :func:`~cuda.coop.topk_min_keys` selects its smallest keys. The pair variants
@@ -1325,7 +1349,7 @@ complete example. The :ref:`batched reduction FAQ <coop-faq-batched-reduce>`
 compares this operation with ordinary Reduce.
 
 Checking and tuning a kernel
----------------------------
+----------------------------
 
 Check results before comparing algorithms. Useful cases include one full
 tile, several tiles, a single valid element in the final tile, and an empty
@@ -1352,7 +1376,7 @@ static parameters, and import order first. The :doc:`API reference
 <../coop_api>` records exact signatures; the :doc:`overview <../coop>`
 collects operation restrictions and configuration. For generated-source
 diagnostics and the compiler integration, see the
-:doc:`Developer Overview <developer_overview>`.
+:doc:`Numba-CUDA-MLIR Developer Guide <developer_overview>`.
 
 
 Launch resource bounds
