@@ -876,11 +876,6 @@ on Windows it uses ``LOCALAPPDATA\cccl``, falling back to
 ``~\AppData\Local\cccl``. Unset, empty, or relative base directories use
 the fallback. These settings are read at backend cache import.
 
-The provider cache uses ``$XDG_CACHE_HOME/cccl`` on POSIX systems, falling
-back to ``~/.cache/cccl``. On Windows it uses ``%LOCALAPPDATA%\cccl``, with
-``~\AppData\Local\cccl`` as the fallback. Cache configuration is read when
-the backend cache module is imported.
-
 A provider cache key must identify the code being compiled: the operation,
 dtype, shape, static arguments, wrapper ABI, target architecture, compiler
 options, and selected headers and compiler libraries. Runtime array
