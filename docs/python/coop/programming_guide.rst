@@ -1303,7 +1303,7 @@ adds samples to bin zero; see :ref:`the padding FAQ
 .. _coop-run-length-decode:
 
 Expanding runs into values
--------------------------
+--------------------------
 
 :func:`cuda.coop.run_length_decode` expands matching per-thread run-value
 and run-length payloads into a fresh blocked output window. Run lengths
@@ -1331,7 +1331,7 @@ boundary.
 .. _coop-batched-reductions:
 
 Reducing independent batches within a warp
------------------------------------------
+------------------------------------------
 
 :func:`cuda.coop.reduce_batched` treats each local input slot as a separate
 batch. With three items per lane, it reduces three batches across the
