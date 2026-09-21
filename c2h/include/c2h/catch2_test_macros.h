@@ -54,6 +54,7 @@
 // We must pass the COND as a cstring parameter, because it might contain the '%' character that would break the printf
 // formatting.
 #define C2H_INTERNAL_DEVICE_TEST_PRINT(KIND, COND)                                                               \
+  /* NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg) */                                                        \
   ::printf(                                                                                                      \
     __FILE__                                                                                                     \
     ":" _CCCL_TO_STRING(__LINE__) ":\n    " KIND "(%s) failed\n    block [%u, %u, %u], thread [%u, %u, %u]\n\n", \
