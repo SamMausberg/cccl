@@ -187,6 +187,19 @@ the call. PR CI builds and runs with matched driver/CTK, so this only reproduces
 Flag dependencies fetched by branch name (`CPMAddPackage("gh:org/repo#main")`, `GIT_TAG
 main`); pin a commit or tag. Candidate for a pre-commit grep.
 
+## correctness.noexcept (critical, new or changed async/fallible public member functions)
+
+<!-- provenance:
+  #7705→#10888 fixed_capacity_map's *_async members were noexcept while __open_addressing_impl ("@throws cuda_error") used _CCCL_TRY_CUDA_API;
+  the cooperative-group launch branches also had no error check at all, unlike their cg_size==1 siblings
+-->
+
+No statement in a `noexcept` function is allowed to throw — an escaping exception calls
+`std::terminate`, turning a recoverable error into a process crash, and it compiles cleanly with no
+warning. Pay attention to throwing reached through helpers: `_CCCL_TRY_CUDA_API`, `_CCCL_THROW`, or
+callees documented `@throws`. Also check that kernel launches on all possible code paths in a function
+carry the same error check — an unchecked launch silently swallows failures.
+
 ## perf.tuning-refactor-verification (important, CUB tuning-policy selectors in `cub/device/dispatch/tuning/*.cuh` and perf-critical type/arch dispatch)
 
 <!-- provenance:
