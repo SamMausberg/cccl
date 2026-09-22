@@ -187,6 +187,20 @@ the call. PR CI builds and runs with matched driver/CTK, so this only reproduces
 Flag dependencies fetched by branch name (`CPMAddPackage("gh:org/repo#main")`, `GIT_TAG
 main`); pin a commit or tag. Candidate for a pre-commit grep.
 
+## build.windows-min-max-macro (important, C++ code calling `.max()`/`.min()` or naming a new member/trait `max`/`min`)
+
+<!-- provenance:
+  #8875→#9246 argument-annotation trait member named max, computed via unparenthesized numeric_limits<T>::max(), a preprocessor argument-count error under <windows.h>'s max/min macros;
+  renamed to highest/lowest and parenthesized
+-->
+
+Flag an unparenthesized call to a function literally named `max`/`min` (e.g.
+`std::numeric_limits<T>::max()`), and any new member or trait named `max`/`min`. On Windows,
+`<windows.h>` defines `max`/`min` as function-like macros, breaking such code. Headers sandwiched
+between `<cuda/std/__cccl/prologue.h>`/`epilogue.h` (libcudacxx, cudax) are safe; everywhere else
+(CUB, Thrust, tests, examples), require the macro-safe spelling `(std::numeric_limits<T>::max)()`
+and prefer other member names. Candidate for a pre-commit grep.
+
 ## perf.tuning-refactor-verification (important, CUB tuning-policy selectors in `cub/device/dispatch/tuning/*.cuh` and perf-critical type/arch dispatch)
 
 <!-- provenance:
