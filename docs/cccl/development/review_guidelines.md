@@ -187,6 +187,16 @@ the call. PR CI builds and runs with matched driver/CTK, so this only reproduces
 Flag dependencies fetched by branch name (`CPMAddPackage("gh:org/repo#main")`, `GIT_TAG
 main`); pin a commit or tag. Candidate for a pre-commit grep.
 
+## api.alias-template-ctad-gap (important, public type aliases wrapping a class template that supports CTAD)
+
+<!-- provenance:
+  #3686→#6093 host_mdspan/device_mdspan/managed_mdspan alias templates over cuda::std::mdspan with a substituted accessor; CTAD silently failed to compile (pair auto-inferred from issue #6076)
+-->
+
+When a diff introduces a type as an alias template, users cannot construct it via CTAD in C++17.
+This is usually fine, unless the alias replaced a public entity that previously supported CTAD,
+in which case the change breaks CTAD. Flag the alias template and require a test for CTAD to be added.
+
 ## perf.tuning-refactor-verification (important, CUB tuning-policy selectors in `cub/device/dispatch/tuning/*.cuh` and perf-critical type/arch dispatch)
 
 <!-- provenance:
