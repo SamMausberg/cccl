@@ -187,6 +187,21 @@ the call. PR CI builds and runs with matched driver/CTK, so this only reproduces
 Flag dependencies fetched by branch name (`CPMAddPackage("gh:org/repo#main")`, `GIT_TAG
 main`); pin a commit or tag. Candidate for a pre-commit grep.
 
+## correctness.temp-storage-raw-alignment (critical, CUB/Thrust device-dispatch code allocating or indexing into `d_temp_storage`)
+
+<!-- provenance:
+  #6811→#9565 (backport #9781) warpspeed DeviceScan dispatch performed raw uint4 stores into d_temp_storage at a hand-computed offset, guarded only by a debug-only _CCCL_ASSERT and a "we probably need to ensure alignment" TODO, instead of routing through detail::alias_temporaries();
+  misaligned callers hit Warp Misaligned Address faults on Blackwell (issue #9742)
+-->
+
+Flag any manual handling of the caller-supplied `d_temp_storage` in a dispatch: pointer arithmetic,
+hand-computed offsets or alignment, or passing the raw pointer into a kernel argument. Only two forms
+are allowed: (1) algorithms needing no temporary storage return a `temp_storage_bytes` of 1 and never
+touch the pointer; (2) algorithms needing one or more allocations must carve them out via
+`detail::alias_temporaries` or `detail::temporary_storage::layout`, which alone are allowed to round
+the base pointer up and report the required size. A hand-rolled offset inherits whatever alignment
+the caller's allocation had, and a `_CCCL_ASSERT(is_aligned(...))` compiles out in release builds.
+
 ## perf.tuning-refactor-verification (important, CUB tuning-policy selectors in `cub/device/dispatch/tuning/*.cuh` and perf-critical type/arch dispatch)
 
 <!-- provenance:
